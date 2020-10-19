@@ -9,10 +9,13 @@ import com.epam.ta.reportportal.ws.model.launch.StartLaunchRQ;
 import com.github.invictum.reportportal.FileStorage;
 import com.github.invictum.reportportal.ReportIntegrationConfig;
 import com.google.inject.Provider;
+import io.reactivex.Maybe;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Calendar;
+import java.util.HashSet;
 
 public class ReportLaunchProvider implements Provider<Launch> {
 
@@ -27,16 +30,20 @@ public class ReportLaunchProvider implements Provider<Launch> {
         StartLaunchRQ startEvent = buildStartLaunchEvent(reportPortal.getParameters());
         Launch launch = reportPortal.newLaunch(startEvent);
         LOG.debug("Report Portal communication is engaged");
-        // Record launch ID
-        String id = launch.start().blockingGet();
+        //We should run launch immediately to avoid problem with rp.client.join functionality
+        Maybe<String> launchId = launch.start();
         // Register shutdown hook. RP connection will be closed before VM shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             // Finish launch
             FinishExecutionRQ finishExecutionRQ = new FinishExecutionRQ();
             finishExecutionRQ.setEndTime(Calendar.getInstance().getTime());
-            reportPortal.getClient().finishLaunch(id, finishExecutionRQ).blockingGet();
+            launch.finish(finishExecutionRQ);
             // Activate merge if parameters are passed
             if (DIR != null && MODULES_COUNT > 1) {
+                //Record launch ID and UUID.
+                String uuid = launchId.blockingGet();
+                Long id = reportPortal.getClient().getLaunchByUuid(uuid).blockingGet().getLaunchId();
+                //Init fileStorage
                 fileStorage = new FileStorage(DIR);
                 fileStorage.touch(id);
                 // Perform merge
@@ -57,17 +64,20 @@ public class ReportLaunchProvider implements Provider<Launch> {
         event.setName(parameters.getLaunchName());
         event.setStartTime(Calendar.getInstance().getTime());
         event.setMode(parameters.getLaunchRunningMode());
-        event.setTags(parameters.getTags());
+        event.setAttributes(parameters.getAttributes());
         event.setDescription(parameters.getDescription());
+        event.setRerun(parameters.isRerun());
+        event.setRerunOf(parameters.getRerunOf());
         return event;
     }
 
     private MergeLaunchesRQ buildMergeLaunchesEvent(ListenerParameters parameters) {
         MergeLaunchesRQ merge = new MergeLaunchesRQ();
         merge.setName(parameters.getLaunchName());
-        merge.setTags(parameters.getTags());
+        merge.setAttributes(new HashSet<>(parameters.getAttributes()));
         merge.setExtendSuitesDescription(true);
         merge.setMergeStrategyType("DEEP");
+        merge.setDescription(parameters.getDescription() == null ? StringUtils.EMPTY : parameters.getDescription());
         merge.setLaunches(fileStorage.loadAndClean());
         return merge;
     }

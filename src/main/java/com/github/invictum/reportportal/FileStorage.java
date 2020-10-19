@@ -21,7 +21,7 @@ public class FileStorage {
     /**
      * Valid file name pattern
      */
-    private static final Predicate<Path> VALID = path -> path.getFileName().toString().matches("^[\\dabcdef]+$");
+    private static final Predicate<Path> VALID = path -> path.getFileName().toString().matches("^\\d+$");
 
     private Path root;
 
@@ -43,10 +43,10 @@ public class FileStorage {
     /**
      * Creates file in a storage
      *
-     * @param name of file to create, usually it is launch ID
+     * @param id of file to create, usually it is launch ID
      */
-    public void touch(String name) {
-        Path path = root.resolve(name);
+    public void touch(Long id) {
+        Path path = root.resolve(id.toString());
         try {
             Files.createFile(path);
         } catch (IOException e) {
@@ -69,11 +69,11 @@ public class FileStorage {
     /**
      * Collects the set of launches and removes storage
      */
-    public Set<String> loadAndClean() {
-        Set<String> ids = new HashSet<>();
+    public Set<Long> loadAndClean() {
+        Set<Long> ids = new HashSet<>();
         try {
             Files.list(root).filter(VALID).forEach(path -> {
-                ids.add(path.getFileName().toString());
+                ids.add(Long.parseLong(path.getFileName().toString()));
                 secureRemove(path);
             });
             Files.delete(root);
