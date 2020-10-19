@@ -38,7 +38,7 @@ public class BddDataDriven extends TestRecorder {
                 .build();
         Maybe<String> testId = launch.startTestItem(id, startScenario);
         // Steps
-        proceedSteps(testId, out.getTestSteps());
+        proceedSteps(testId, test.getChildren());
         // Stop test
         FinishTestItemRQ finishScenario = new FinishEventBuilder()
                 .withStatus(Status.mapTo(test.getResult()))

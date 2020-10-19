@@ -35,7 +35,7 @@ public class ReportPortalListener implements StepListener {
     }
 
     public void testSuiteFinished() {
-        suiteStorage.finalizeActive();
+        // suiteStorage.finalizeActive();
     }
 
     public void testStarted(String description) {

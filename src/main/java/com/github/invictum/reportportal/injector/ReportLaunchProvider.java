@@ -8,6 +8,8 @@ import com.epam.ta.reportportal.ws.model.launch.MergeLaunchesRQ;
 import com.epam.ta.reportportal.ws.model.launch.StartLaunchRQ;
 import com.github.invictum.reportportal.FileStorage;
 import com.github.invictum.reportportal.ReportIntegrationConfig;
+import com.github.invictum.reportportal.SuiteStorage;
+import com.google.inject.Inject;
 import com.google.inject.Provider;
 import io.reactivex.Maybe;
 import org.apache.commons.lang3.StringUtils;
@@ -24,6 +26,9 @@ public class ReportLaunchProvider implements Provider<Launch> {
     private static final int MODULES_COUNT = ReportIntegrationConfig.get().modulesQuantity();
     private FileStorage fileStorage;
 
+    @Inject
+    private SuiteStorage suiteStorage;
+
     @Override
     public Launch get() {
         ReportPortal reportPortal = ReportPortal.builder().build();
@@ -34,6 +39,8 @@ public class ReportLaunchProvider implements Provider<Launch> {
         Maybe<String> launchId = launch.start();
         // Register shutdown hook. RP connection will be closed before VM shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            // Finish suites
+            suiteStorage.finalizeActive();
             // Finish launch
             FinishExecutionRQ finishExecutionRQ = new FinishExecutionRQ();
             finishExecutionRQ.setEndTime(Calendar.getInstance().getTime());
